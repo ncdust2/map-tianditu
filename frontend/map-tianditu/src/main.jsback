@@ -1,0 +1,108 @@
+// The Vue build version to load with the `import` command
+// (runtime-only or standalone) has been set in webpack.base.conf with an alias.
+import Vue from 'vue'
+import App from './App'
+import ElementUI from 'element-ui'
+import 'element-ui/lib/theme-chalk/index.css'
+import router from './router'
+import axios from 'axios'
+import qs from 'qs'
+import md5 from 'js-md5'
+import VueResource from 'vue-resource'
+import * as echarts from "echarts"
+var HOSTURL = 'http://106.12.145.231'
+
+Vue.prototype.$http = axios
+Vue.prototype.$axios = axios
+Vue.prototype.$md5 = md5 
+Vue.prototype.qs = qs
+Vue.prototype.$echarts = echarts
+
+axios.interceptors.request.use(config => {
+  console.log(window.sessionStorage)
+  // 在最后必须 return config
+  if (config.method === "get") {
+            config.data = { unused: 0 }; // 这个是关键点，加入这行就可以了,解决get,请求添加不上Content-Type
+        }
+        config.headers["Content-type"] = "application/json;charset=UTF-8";
+        var stoken = window.sessionStorage.getItem('token');
+        console.log(stoken)
+        config.headers["token"] = window.sessionStorage.getItem('token');
+  return config
+})
+//路由守卫
+router.beforeEach((to, from, next)=>{
+  //路由中设置的needLogin字段就在to当中
+  var ltoken = window.localStorage.getItem('token');
+   console.log(ltoken)
+  if(ltoken){
+    var stoken = window.sessionStorage.getItem('token');
+   console.log('stoken')
+   console.log(stoken)
+    if(stoken){}else{
+                 window.sessionStorage.setItem('token', ltoken)
+                 let turl = HOSTURL + '/api/admintoken'
+                 console.log(turl)
+                 console.log(ltoken)
+                 axios({
+                 url:turl,
+                 method:'post',
+                 data:{},
+                 headers:{
+            'Content-Type': 'application/json',
+            'token': ltoken
+            }
+            }).then((response) =>{          //这里使用了ES6的语法
+                 console.log(response.data)
+                 //ElementUI.message.success('自动登录成功')
+                 window.sessionStorage.setItem('username', response.data.username)
+                 }).catch((error) =>{
+                 console.log(error)       //请求失败返回的数据
+                 //ElementUI.message.error(error.response.data.msg)
+                 window.sessionStorage.removeItem('token')
+                 window.sessionStorage.removeItem('username')
+                 window.localStorage.removeItem('token')
+                 window.localStorage.removeItem('username')
+                 }
+             )
+        }
+    }else{
+                 window.localStorage.removeItem('username')
+    }
+  if(window.sessionStorage.token){
+   console.log(window.sessionStorage);
+   // console.log(to.path) //每次跳转的路径
+   if(to.path === '/login'){
+    //登录状态下 访问login.vue页面 会跳到index.vue
+    next({path: '/results'});
+    }else{
+    next();
+   }
+  }else{
+   // 如果没有session ,访问任何页面。都会进入到 登录页
+   if (to.path === '/login' ) { // 如果是登录页面的话，直接next() -->解决注销后的循环执行bug
+    next();
+   } else { // 否则 跳转到登录页面
+    next({ path: '/login' });
+   }
+  }
+})
+
+
+Vue.config.productionTip = false
+Vue.use(ElementUI)
+Vue.use(VueResource)
+
+/* eslint-disable no-new */
+new Vue({
+  el: '#app',
+  router,
+  data: function(){
+    return{
+HOST: HOSTURL,
+    }
+  },
+
+  components: { App },
+  template: '<App/>'
+})
