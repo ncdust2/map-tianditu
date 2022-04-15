@@ -5,7 +5,11 @@
 #email:87658356@qq.com 
 
 from flask import Flask
+import os, re
+import pandas as pd
 app = Flask(__name__)
+from flask_cors import CORS
+CORS(app,  supports_credentials=True)
 
 @app.route('/')
 def index():
@@ -14,6 +18,21 @@ def index():
 @app.route('/wel')
 def welcome():
     return 'welcome' 
+
+@app.route('/markers')
+def markers():
+    df = []
+    for root, ds, fs in os.walk('./markers'):
+        for f in fs:
+            fullname = os.path.join(root, f)
+            if f.split('.')[-1] in ('xlsx', 'xls'):
+                df.append(pd.read_excel(fullname))
+            elif f.split('.')[-1] in ('csv'):
+                df.append(pd.read_csv(fullname))
+                 
+    df = pd.concat(df)
+#    return repr(df)
+    return df.to_json(orient='records' , force_ascii=False)
 
 @app.route('/<path:fallback>')
 def fallback(fallback):       # Vue Router 的 mode 为 'hash' 时可移除该方法
@@ -25,5 +44,4 @@ def fallback(fallback):       # Vue Router 的 mode 为 'hash' 时可移除该�
 
 if __name__ == "__main__":
     app.run(host = '0.0.0.0', debug = True, port = '5000')
-#    app.run(host = '0.0.0.0', port = '80')
 
